@@ -9,8 +9,9 @@ function calculator() {
     const BACKSPACE_SYMBOL = '⬅';
     const CALCULATE_SYMBOL = '=';
     const CLEAR_SYMBOL = 'C';
+    const DIVISION_ERROR_MSG = 'ERROR:Division by zero'
 
-    const valideKeys = ['+', '-', '/','*', BACKSPACE_KEY, DECIMAL_KEY, CALCULATE_KEY, CLEAR_KEY, BACKSPACE_SYMBOL, CALCULATE_SYMBOL, CLEAR_SYMBOL];
+    const valideKeys = ['+', '-', '/', '*', BACKSPACE_KEY, DECIMAL_KEY, CALCULATE_KEY, CLEAR_KEY, BACKSPACE_SYMBOL, CALCULATE_SYMBOL, CLEAR_SYMBOL];
 
 
     function isValideKey(key) {
@@ -33,11 +34,11 @@ function calculator() {
     }
 
     let _calculator = {
-        display: '',
-        numberA: undefined,
-        numberB: undefined,
-        operation: undefined,
-        shouldClearDisplay: false,
+        displayValue: 0,
+        numberA: null,
+        numberB: null,
+        operation: null,
+        waitingForOperand: false,
     }
 
 
@@ -45,102 +46,125 @@ function calculator() {
 
 
         if (isNumber(value)) {
-            updateDisplay(value);
-            console.log('r',_calculator)
+            addDigit(value);
             return;
         }
 
 
         if (isOperationKey(value)) {
-            console.log('s',_calculator);
-            setOperation(value);
-            
+
+            handleOperator(value);
+
             return;
         }
 
         if (value === CALCULATE_KEY || value === CALCULATE_SYMBOL) {
             calculate();
-            console.log('c',_calculator);
             return;
         }
 
         if (value === BACKSPACE_KEY || value === BACKSPACE_SYMBOL) {
             backspace();
-            console.log('b',_calculator);
             return;
         }
 
-        if(value === DECIMAL_KEY) {
+        if (value === DECIMAL_KEY) {
             addDecimal();
-            console.log('d',_calculator);
             return;
         }
 
-        if(value === CLEAR_KEY || value === CLEAR_SYMBOL) {
+        if (value === CLEAR_KEY || value === CLEAR_SYMBOL) {
             clear();
-            console.log('cl',_calculator);
             return;
         }
 
     }
 
-    function setOperation(value) {
-        
-        if(_calculator.operation && !_calculator.shouldClearDisplay) {
-            calculate();
+    function handleOperator(nextOperator) {
+        const { displayValue, operation, waitingForOperand } = _calculator;
+
+
+        if (operation && !waitingForOperand) {
+            const result = performCalculation();
+
+
+            if(result === DIVISION_ERROR_MSG) {
+                _calculator.displayValue = result;
+                updateDisplay();
+                clear();
+                return;
+            }
+
+
+            _calculator.displayValue = result;
+            _calculator.numberA = result;
+            _calculator.numberB = undefined;
+            _calculator.waitingForOperand = true;
+            updateDisplay();
+
+            return;
         }
 
-        _calculator.numberA = _calculator.display;
-        _calculator.operation = value;
-        _calculator.shouldClearDisplay = true;
+        _calculator.numberA = displayValue;
+        _calculator.operation = nextOperator;
+        _calculator.waitingForOperand = true;
+        updateDisplay();
     }
 
-    function updateDisplay(value) {
-        if (_calculator.shouldClearDisplay) {
-            clearDisplay();
-        }
-        _calculator.display += value;
-        setDisplay(_calculator.display);
+    function updateDisplay() {
+        setDisplay(_calculator.displayValue.toString());
     }
 
     function clear() {
-        _calculator.numberA = undefined;
-        _calculator.numberB = undefined;
-        _calculator.operation = undefined;
-        clearDisplay();
+        _calculator = {
+            displayValue:0,
+            numberA:null,
+            numberB:null,
+            operation:null,
+            waitingForOperand:false
+        };
+
+        updateDisplay();
     }
 
-    function clearDisplay() {
-        _calculator.display = '';
-        _calculator.shouldClearDisplay = false;
-        setDisplay('');
-    }
 
     function backspace() {
-        if(_calculator.display.length === 0) return;
-        
+        const displayValue = _calculator.displayValue.toString();
+        if (displayValue.length === 0) return;
         const START = 0;
-        const LAST_CHARACTER = -1;
+        const LAST_CHARACTER = -1; 
+        const DISPLAY_EMPTY_VALUE = 0;
 
-        _calculator.display = _calculator.display.slice(START,LAST_CHARACTER);
-        setDisplay(_calculator.display);
+        _calculator.displayValue = displayValue.length === 1 ? DISPLAY_EMPTY_VALUE : displayValue.slice(START, LAST_CHARACTER);
+        updateDisplay();
     }
 
     function setDisplay(string) {
         const display = document.getElementById("operation-display");
-
-        if (_calculator.shouldClearDisplay) {
-            clearDisplay();
-        }
-
         display.textContent = string;
     }
 
+    function addDigit(digit) {
+        const {displayValue, waitingForOperand} = _calculator;
+        const EMPTY = 0;
+
+        if(!waitingForOperand) {
+            _calculator.displayValue = displayValue === EMPTY && digit !== DECIMAL_KEY ? digit : displayValue + digit;
+            updateDisplay();
+            return;
+        }
+
+        _calculator.displayValue = digit;
+        _calculator.waitingForOperand = false;
+        updateDisplay();
+
+    }
+
     function addDecimal() {
-        const isDecimal = _calculator.display.includes(DECIMAL_KEY);
-        if(isDecimal) return;
+        const isDecimal = _calculator.displayValue.toString().includes(DECIMAL_KEY);
+        if (isDecimal) return;
         _calculator.display += DECIMAL_KEY;
-        setDisplay(_calculator.display); 
+        updateDisplay();
     }
 
     function add(numberA, numberB) {
@@ -148,6 +172,10 @@ function calculator() {
     }
 
     function divide(numberA, numberB) {
+        const ERROR_DIVIDER = 0;
+        
+        if(numberB === ERROR_DIVIDER) return DIVISION_ERROR_MSG;
+        
         return numberA / numberB;
     }
 
@@ -165,20 +193,39 @@ function calculator() {
         return result;
     }
 
-    function calculate() {
-        if (_calculator.operation === undefined || _calculator.shouldClearDisplay) return;
+    function performCalculation() {
+        const { operation, numberA, displayValue} = _calculator;
+        const numberB = displayValue;
 
-        _calculator.numberB = _calculator.display;
+        const result = operate(operation, numberA, numberB);
 
-        const result = operate(_calculator.operation, _calculator.numberA, _calculator.numberB);
-
-        setDisplay(result);
-        _calculator.numberA = result;
-        _calculator.numberB = undefined;
-        _calculator.operation = undefined;
-        _calculator.shouldClearDisplay = true;
+        return result;
 
     }
+
+    function calculate() {
+        const { operation, waitingForOperand } = _calculator;
+
+        if (!operation || waitingForOperand) {
+            return;
+        }
+
+        const result = performCalculation();
+
+        if(DIVISION_ERROR_MSG === result) {
+            _calculator.displayValue = result;
+            updateDisplay();
+            clear();
+            return;
+        }
+
+        _calculator.displayValue = result;
+        _calculator.numberA = result;
+        _calculator.operation = null;
+        _calculator.waitingForOperand = true;
+        updateDisplay();
+    }
+
 
     function validateKeyPressed(key) {
         const isNotANumber = isNaN(Number(key));
@@ -209,7 +256,7 @@ function calculator() {
 
         const isValideKey = validateKeyPressed(keyClicked);
 
-        if(!isValideKey) return;
+        if (!isValideKey) return;
 
         handleInput(keyClicked);
     }
@@ -226,4 +273,4 @@ function calculator() {
 const calc = calculator();
 
 document.addEventListener("keydown", calc.handleKeyDown);
-document.addEventListener("click",calc.handleButtonClick);
+document.addEventListener("click", calc.handleButtonClick);
