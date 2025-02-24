@@ -44,7 +44,6 @@ function calculator() {
 
     function handleInput(value) {
 
-
         if (isNumber(value)) {
             addDigit(value);
             return;
@@ -175,7 +174,7 @@ function calculator() {
         const ERROR_DIVIDER = 0;
         
         if(numberB === ERROR_DIVIDER) return DIVISION_ERROR_MSG;
-        
+
         return numberA / numberB;
     }
 
@@ -242,7 +241,7 @@ function calculator() {
 
     function handleKeyDown(event) {
 
-        const keyPressed = event.key;
+        const keyPressed = event.key.toString().trim();
 
         const isValideKey = validateKeyPressed(keyPressed);
 
