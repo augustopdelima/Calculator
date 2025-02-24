@@ -162,7 +162,7 @@ function calculator() {
     function addDecimal() {
         const isDecimal = _calculator.displayValue.toString().includes(DECIMAL_KEY);
         if (isDecimal) return;
-        _calculator.display += DECIMAL_KEY;
+        _calculator.displayValue += DECIMAL_KEY;
         updateDisplay();
     }
 
